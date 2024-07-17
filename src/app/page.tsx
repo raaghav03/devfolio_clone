@@ -1,76 +1,98 @@
 "use client";
 
-import { useState } from "react";
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { useState, ChangeEvent, FormEvent } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+interface User {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
+type UserErrors = Partial<Record<keyof User, string>>;
 
 export default function Home() {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [user, setUser] = useState<User>({
+    username: "",
+    email: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+  });
 
-  async function addUser(e) {
-    e.preventDefault();
-    const response = await fetch("/api/users", {
-      method: "POST",
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        firstName,
-        lastName,
-      }),
-    });
-    const data = await response.json();
-    console.log(data);
-    clearForm();
-  }
+  const [errors, setErrors] = useState<UserErrors>({});
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setUser((prev) => ({ ...prev, [name]: value }));
+  };
+
   const clearForm = () => {
-    setUsername("");
-    setEmail("");
-    setPassword("");
-    setFirstName("");
-    setLastName("");
+    setUser({
+      username: "",
+      email: "",
+      password: "",
+      firstName: "",
+      lastName: "",
+    });
+    setErrors({});
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: UserErrors = {};
+    if (user.username.length < 3) newErrors.username = "Username must be at least 3 characters long";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) newErrors.email = "Invalid email format";
+    if (user.password.length < 8) newErrors.password = "Password must be at least 8 characters long";
+    if (user.firstName.length === 0) newErrors.firstName = "First name is required";
+    if (user.lastName.length === 0) newErrors.lastName = "Last name is required";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const addUser = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (validateForm()) {
+      try {
+        const response = await fetch("/api/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(user),
+        });
+        if (!response.ok) {
+          throw new Error("Failed to add user");
+        }
+        const data = await response.json();
+        console.log(data);
+        clearForm();
+      } catch (error) {
+        console.error("Error adding user:", error);
+      }
+    }
   };
 
   return (
-    <>
-
-      <form onSubmit={addUser} className="flex flex-col items-start m-4 p-4 gap-4">
-        <Input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-
-        />
-        <Input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <Input
-          type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-        />
-        <Input
-          type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-        />
-        <Button type="submit">Add User</Button>
-      </form></>
+    <form onSubmit={addUser} className="flex flex-col items-start m-4 p-4 gap-4">
+      {(Object.keys(user) as Array<keyof User>).map((key) => (
+        <div key={key}>
+          <Input
+            type={key === "password" ? "password" : key === "email" ? "email" : "text"}
+            name={key}
+            placeholder={key.charAt(0).toUpperCase() + key.slice(1)}
+            value={user[key]}
+            onChange={handleChange}
+          />
+          {errors[key] && (
+            <p className="text-red-500 text-sm">{errors[key]}</p>
+          )}
+        </div>
+      ))}
+      <Button type="submit">Add User</Button>
+    </form>
   );
 }
