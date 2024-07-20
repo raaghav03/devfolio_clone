@@ -2,11 +2,9 @@ import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
-
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { username, email, password, firstName, lastName } = body;
-
   try {
     const user = await prisma.name.create({
       data: {
@@ -28,4 +26,9 @@ export async function POST(request: NextRequest) {
       );
     }
   }
+}
+
+export async function GET(request: NextRequest) {
+  const users = await prisma.name.findMany();
+  return NextResponse.json(users);
 }

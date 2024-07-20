@@ -1,18 +1,30 @@
 "use client";
-
-import { useState, ChangeEvent, FormEvent } from "react";
+import axios from "axios";
+import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { z } from "zod";
 
-interface User {
-  username: string;
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
+type User = z.infer<typeof userSchema>;
+const passwordValidation = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+interface UserList extends User {
+  id: string
 }
-
-type UserErrors = Partial<Record<keyof User, string>>;
+const userSchema = z.object({
+  username: z
+    .string()
+    .min(3, { message: "Username must be at least 3 characters" }),
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z
+    .string()
+    .min(8, { message: "Must have at least 8 characters" })
+    .regex(passwordValidation, {
+      message:
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+    }),
+  firstName: z.string().min(1, { message: "First name is required" }),
+  lastName: z.string().min(1, { message: "Last name is required" }),
+});
 
 export default function Home() {
   const [user, setUser] = useState<User>({
@@ -22,8 +34,20 @@ export default function Home() {
     firstName: "",
     lastName: "",
   });
-
-  const [errors, setErrors] = useState<UserErrors>({});
+  const [userlist, setUserList] = useState<UserList[]>([]);
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const response = await axios.get("/api/users");
+        console.log(response.data);
+        setUserList(response.data);
+      } catch (err) {
+        console.log(err);
+      }
+    }
+    fetchUsers();
+  }, []);
+  const [errors, setErrors] = useState<z.ZodIssue[]>([]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,61 +62,108 @@ export default function Home() {
       firstName: "",
       lastName: "",
     });
-    setErrors({});
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: UserErrors = {};
-    if (user.username.length < 3) newErrors.username = "Username must be at least 3 characters long";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) newErrors.email = "Invalid email format";
-    if (user.password.length < 8) newErrors.password = "Password must be at least 8 characters long";
-    if (user.firstName.length === 0) newErrors.firstName = "First name is required";
-    if (user.lastName.length === 0) newErrors.lastName = "Last name is required";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors([]);
   };
 
   const addUser = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (validateForm()) {
-      try {
-        const response = await fetch("/api/users", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(user),
-        });
-        if (!response.ok) {
-          throw new Error("Failed to add user");
-        }
-        const data = await response.json();
-        console.log(data);
-        clearForm();
-      } catch (error) {
-        console.error("Error adding user:", error);
-      }
+    const validation = userSchema.safeParse(user);
+    if (!validation.success) {
+      setErrors(validation.error.issues);
+      return;
+    }
+    try {
+      const response = await axios.post("/api/users", user);
+      console.log(response);
+      clearForm();
+    } catch (err) {
+      console.error("error adding user" + err);
     }
   };
 
   return (
-    <form onSubmit={addUser} className="flex flex-col items-start m-4 p-4 gap-4">
-      {(Object.keys(user) as Array<keyof User>).map((key) => (
-        <div key={key}>
-          <Input
-            type={key === "password" ? "password" : key === "email" ? "email" : "text"}
-            name={key}
-            placeholder={key.charAt(0).toUpperCase() + key.slice(1)}
-            value={user[key]}
-            onChange={handleChange}
-          />
-          {errors[key] && (
-            <p className="text-red-500 text-sm">{errors[key]}</p>
-          )}
-        </div>
-      ))}
-      <Button type="submit">Add User</Button>
-    </form>
+    <>
+      <form
+        onSubmit={addUser}
+        className="flex flex-col items-start m-4 p-4 gap-4"
+      >
+        <Input
+          type="text"
+          name="username"
+          placeholder="Username"
+          value={user.username}
+          onChange={handleChange}
+        />
+        {errors.find((error) => error.path.includes("username")) && (
+          <span className="text-red-500">
+            {errors.find((error) => error.path.includes("username"))?.message}
+          </span>
+        )}
+
+        <Input
+          type="text"
+          name="email"
+          placeholder="Email"
+          value={user.email}
+          onChange={handleChange}
+        />
+        {errors.find((error) => error.path.includes("email")) && (
+          <span className="text-red-500">
+            {errors.find((error) => error.path.includes("email"))?.message}
+          </span>
+        )}
+
+        <Input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={user.password}
+          onChange={handleChange}
+        />
+        {errors.find((error) => error.path.includes("password")) && (
+          <span className="text-red-500">
+            {errors.find((error) => error.path.includes("password"))?.message}
+          </span>
+        )}
+
+        <Input
+          type="text"
+          name="firstName"
+          placeholder="First Name"
+          value={user.firstName}
+          onChange={handleChange}
+        />
+        {errors.find((error) => error.path.includes("firstName")) && (
+          <span className="text-red-500">
+            {errors.find((error) => error.path.includes("firstName"))?.message}
+          </span>
+        )}
+
+        <Input
+          type="text"
+          name="lastName"
+          placeholder="Last Name"
+          value={user.lastName}
+          onChange={handleChange}
+        />
+        {errors.find((error) => error.path.includes("lastName")) && (
+          <span className="text-red-500">
+            {errors.find((error) => error.path.includes("lastName"))?.message}
+          </span>
+        )}
+
+        <Button type="submit">Add User</Button>
+      </form>
+      {
+        userlist.map((user) => (
+          <tr key={user.id}>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.firstName}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.lastName}</td>
+          </tr>
+        ))
+      }
+    </>
   );
 }
