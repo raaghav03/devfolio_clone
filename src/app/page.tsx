@@ -156,12 +156,12 @@ export default function Home() {
       </form>
       {
         userlist.map((user) => (
-          <tr key={user.id}>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.firstName}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.lastName}</td>
-          </tr>
+          <div key={user.id}>
+            <div className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</div>
+            <div className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</div>
+            <div className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.firstName}</div>
+            <div className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.lastName}</div>
+          </div>
         ))
       }
     </>
